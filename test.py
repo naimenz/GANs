@@ -7,6 +7,8 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 
+SEED = 0
+torch.manual_seed(SEED)
 
 # points to evaluate the network at
 n_eval = 1000
@@ -27,7 +29,7 @@ x_eval = torch.linspace(0, 1, n_eval).reshape(-1, 1)
 # plt.hist(np.array(training_x.reshape(-1)), bins=30)
 # plt.show()
 
-n_train = 2000
+n_train = 20000
 mean, var = 0.5, 0.1
 x_train = torch.normal(mean, var, (n_train, 1))
 # for now, just always saying x = 0.2
@@ -45,12 +47,11 @@ class BadGenerator(object):
     def __call__(self, x):
         return x
 
-D = DiscriminatorNetwork(input_dim=1, output_dim=1, hidden_dim=20, n_hidden_layers=1)
-G = GeneratorNetwork(intput_dim=1, output_dim=1, hidden_dim=20, n_hidden_layers=1)
 
 N = 1000 # number of epochs to train D + G
-k = 10 # train the discriminator for k steps each epoch
-m = 50 # minibatch size
+k = 100#20 # train the discriminator for k steps each epoch
+m = 10 # minibatch size
+mg = 100 # minibatch for generator size
 
 # loss for the discriminator 
 def compute_discriminator_loss(y_train, y_gen):
@@ -58,24 +59,26 @@ def compute_discriminator_loss(y_train, y_gen):
 
 # loss for the generator, note that we change the objective as described in the original paper
 def compute_generator_loss(y_gen):
-    return torch.mean(torch.log(y_gen))
+    return -torch.mean(torch.log(y_gen))
+    # return torch.mean(1-torch.log(y_gen))
+
+D = DiscriminatorNetwork(input_dim=1, output_dim=1, hidden_dim=100, n_hidden_layers=1)
+G = GeneratorNetwork(input_dim=1, output_dim=1, hidden_dim=100, n_hidden_layers=1)
 
 discriminator_optim = torch.optim.Adam(params=D.parameters())
+generator_optim = torch.optim.Adam(params=G.parameters())
 # we don't train the generator for this little test 
-# generator_optim = torch.optim.Adam(
-
 plt.figure(figsize=(20,10))
 # training epochs
 for i in range(N):
     # iterations of discriminator training
+    d_losses = []
     for j in range(k):
         # sample a minibatch from the training data and the generator
         perm = torch.randperm(n_train)
         x_train_mb = x_train[perm[:m]]
+
         z_mb = noise_prior.sample((m, 1))
-        # saying that the generator just keeps making 0 or 1
-        # z_mb = torch.randint(0, 2, size=(m, 1)).float()
-        # z_mb = torch.full_like(x_train_mb, 0.2)
         x_gen_mb = G(z_mb)
 
         # discriminator predictions for the training data
@@ -87,18 +90,30 @@ for i in range(N):
         discriminator_optim.zero_grad()
         d_loss = compute_discriminator_loss(y_train_mb, y_gen_mb)
         d_loss.backward()
+        d_losses.append(d_loss.item())
         discriminator_optim.step()
-    # one per epoch we train the generator
+
+    # one per epoch we train the generator on a new mb
+    z_mb = noise_prior.sample((mg, 1))
+    y_gen_mb = D(G(z_mb))
+
     generator_optim.zero_grad()
-    g_loss = compute_generator_loss(y_gen
+    g_loss = compute_generator_loss(y_gen_mb)
+    g_loss.backward()
+    generator_optim.step()
+
     # plotting the discriminator curve during training
-    if i % 100 == 0:
-        print(f"Loss at epoch {i} is {d_loss}")
-plt.plot(x_eval, D(x_eval).detach(), label=f"After epoch {i}")
-z = torch.full_like(x_train, 0.8)
+    if i % 10 == 0:
+        print(f"Discriminator loss at epoch {i} is {np.mean(d_losses)}")
+        print(f"Generator loss at epoch {i} is {g_loss}")
+        
+z = noise_prior.sample((n_train, 1))
 x_gen = G(z)
-plt.hist(x_train.detach().numpy(), bins=30, density=True, label="Training data distribution")
-# plt.hist(x_gen.detach().numpy(), bins=30, density=True, label="Training data distribution")
+plt.hist(x_train.detach().numpy(), bins=50, density=True, label="Training data distribution")
+
+# plt.plot(x_eval, G(x_eval).detach(), label=f"Generator after epoch {i}")
+plt.hist(x_gen.detach().numpy(), bins=50, density=True, label="Generator data distribution")
+plt.plot(x_eval, D(x_eval).detach(), label=f"Discriminator after epoch {i}")
+# plt.hist(z.detach().numpy(), bins=30, density=True, label="Noise prior data distribution")
 plt.legend()
 plt.show()
-        
