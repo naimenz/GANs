@@ -28,9 +28,9 @@ noise_prior = torch.distributions.uniform.Uniform(0, 1)
 G = MLPGenerator(noise_prior, input_dim=1, output_dim=1, hidden_dim=100, n_hidden_layers=1, lr=1e-3)
 D = MLPDiscriminator(input_dim=1, hidden_dim=100, n_hidden_layers=1, lr=1e-3)
 
-N = 100 # number of epochs
+N = 2000 # number of epochs
 k = 100 # number of updates to the discriminator each epoch
-m = 100 # number of samples per minibatch
+m = 200 # number of samples per minibatch
 gan = GenerativeAdversarialNetwork(G, D, data_provider, m, k)
 
 # training loop
