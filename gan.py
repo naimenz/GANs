@@ -11,7 +11,7 @@ import numpy as np
 import os
 
 # trying out abstract base class stuff
-from collections.abs import abstractmethod
+# from collections.abc import abstractmethod
 
 class DataProvider(object):
     """
@@ -26,14 +26,14 @@ class DataProvider(object):
         """
         self.data = data
         self.N = len(data)
-        self.perm = np.random.permutation(N)
+        self.perm = np.random.permutation(self.N)
         self.count = 0
 
     def reset(self):
         """
         Reset the provider by producing a new permutation
         """
-        self.perm = np.random.permutation(N)
+        self.perm = np.random.permutation(self.N)
         self.count = 0
 
     def sample_mb(self, m):
@@ -44,7 +44,8 @@ class DataProvider(object):
         :return mb (torch.Tensor): A PyTorch tensor of the sample
         """
         # sample from current permutation
-        indices = self.perm[count % self.N: (count + m) % self.N]
+        indices = self.perm[self.count % self.N: (self.count + m) % self.N]
+        self.count += m
         return torch.from_numpy(self.data[indices])
 
 
@@ -86,13 +87,13 @@ class GenerativeAdversarialNetwork(object):
             # sample training data
             train_mb = self.data_provider.sample_mb(self.m)
             # sample generator data
-            gen_mb = self.G.sample(m)
+            gen_mb = self.G.sample(self.m)
             d_loss = self.D.update(train_mb, gen_mb)
-            d_losses[i] = d_loss
+            d_losses[i] = d_loss.item()
         # get average discriminator loss
         d_loss = np.mean(d_losses)
         # train the generator ONCE
-        g_loss = self.G.update(gen_mb, self.D)
+        g_loss = self.G.update(self.m, self.D)
 
         return d_loss, g_loss
 
@@ -156,12 +157,8 @@ class Discriminator(nn.Module):
         for k, v in self.saveables.items():
             v.load_state_dict(checkpoint[k].state_dict())
 
-    @abstractmethod
-    def __call__(self):
-        """Need to be able to call the discriminator to make predictions"""
-        ...
 
-    @abstractmethod
+    # @abstractmethod
     def update(self):
         """
         Every discriminator must have a way to update its parameters
@@ -177,7 +174,7 @@ class MLPDiscriminator(Discriminator):
     def __init__(self, input_dim=1, hidden_dim=10, n_hidden_layers=2, lr=1e-3
                  ):
         # initialise the module
-        super(Discriminator, self).__init__()
+        super(MLPDiscriminator, self).__init__()
 
         self.n_hidden_layers = n_hidden_layers
         self.input_dim = input_dim
@@ -306,20 +303,13 @@ class Generator(nn.Module):
         """
         # produce noise from the noise prior
         # NOTE TODO: for now this only accepts 1d input dim
-        z_mb = self.noise_prior((m, self.input_dim))
+        z_mb = self.noise_prior.sample(sample_shape=(m, self.input_dim))
         # produce output by calling the generator
         gen_mb = self(z_mb)
 
         return gen_mb
 
-    @abstractmethod
-    def __call__(self):
-        """
-        Need to be able to apply the generator to some noise to produce outputs
-        """
-        ...
-
-    @abstractmethod
+    # @abstractmethod
     def update(self):
         """
         Every generator must have a way to update its parameters
@@ -376,7 +366,7 @@ class MLPGenerator(Generator):
         out = self.output_layer(out)
         return out
 
-    def update(self, m,  discriminator):
+    def update(self, m, discriminator):
         """
         Update the generator based on the current discriminator 
 
