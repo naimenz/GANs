@@ -44,7 +44,14 @@ class DataProvider(object):
         :return mb (torch.Tensor): A PyTorch tensor of the sample
         """
         # sample from current permutation
-        indices = self.perm[self.count % self.N: (self.count + m) % self.N]
+        lo = self.count 
+        hi = (self.count + m)
+        # handle wrapping
+        if hi < self.N:
+            indices = self.perm[self.count % self.N: (self.count + m) % self.N]
+        else:
+            indices = np.concatenate((self.perm[lo % self.N:], self.perm[:hi % self.N]))
+
         self.count += m
         return torch.from_numpy(self.data[indices])
 
