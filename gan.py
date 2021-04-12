@@ -6,17 +6,96 @@ and then ideally for MNIST.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 import os
 
 # trying out abstract base class stuff
 from collections.abs import abstractmethod
 
+class DataProvider(object):
+    """
+    A class to provide minibatches of data easily
+    """
+    def __init__(self, data):
+        """
+        :attr data (np.ndarray): The data to sample from, as a numpy array
+        :attr N (int): The total number of datapoints
+        :attr perm (np.ndarray): A permutation of the indices to sample
+        :attr count (int): The current index reached when sampling
+        """
+        self.data = data
+        self.N = len(data)
+        self.perm = np.random.permutation(N)
+        self.count = 0
+
+    def reset(self):
+        """
+        Reset the provider by producing a new permutation
+        """
+        self.perm = np.random.permutation(N)
+        self.count = 0
+
+    def sample_mb(self, m):
+        """
+        Sample a minibatch of data
+        
+        :param m (int): The number of samples in the minibatch
+        :return mb (torch.Tensor): A PyTorch tensor of the sample
+        """
+        # sample from current permutation
+        indices = self.perm[count % self.N: (count + m) % self.N]
+        return torch.from_numpy(self.data[indices])
+
+
 class GenerativeAdversarialNetwork(object):
     """
     This is a class to house a Generator and a Discriminator and train them jointly.
     I'm still not sure the best way to pass stuff in here but I'll work it out
+
     """
+    def __init__(self, generator, discriminator, data_provider, m, k):
+        """
+        Constructor for a GAN.
+        Takes the two components as input along with training data and some hyperparameters
+        
+        :attr G (Generator): A generator to be trained
+        :attr D (Discriminator): A discriminator to be trained
+        :attr data_provider (DataProvider): An object that provides training data minibatches
+        :attr m (int): The number of samples to train per minibatch
+        :attr k (int): The number of times to train the discriminator per 1 update of the generator
+        """
+        self.G = generator
+        self.D = discriminator
+        self.data_provider = data_provider
+        self.m = m
+        self.k = k
+
+    def train_epoch(self):
+        """
+        Train for an epoch, returning the average discriminator loss and the only generator loss
+        
+        :return d_loss (float): Average discriminator loss in the epoch
+        :return g_loss (float): Generator loss in the epoch
+        """
+        # start by resetting the data provider
+        self.data_provider.reset()
+        # now train the discriminator k times, saving the losses
+        d_losses = [None] * self.k
+        for i in range(self.k):
+            # sample training data
+            train_mb = self.data_provider.sample_mb(self.m)
+            # sample generator data
+            gen_mb = self.G.sample(m)
+            d_loss = self.D.update(train_mb, gen_mb)
+            d_losses[i] = d_loss
+        # get average discriminator loss
+        d_loss = np.mean(d_losses)
+        # train the generator ONCE
+        g_loss = self.G.update(gen_mb, self.D)
+
+        return d_loss, g_loss
+
 
 class Discriminator(nn.Module):
     """
