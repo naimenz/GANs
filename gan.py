@@ -302,12 +302,17 @@ class Generator(nn.Module):
         for k, v in self.saveables.items():
             v.load_state_dict(checkpoint[k].state_dict())
 
-    def sample(self, m):
+    def sample(self, m, training=True):
         """
         Sample a minibatch of outputs from the generator
 
         :param m (int): the number of samples to draw
         """
+        # set the mode correctly
+        if training:
+            self.train()
+        else:
+            self.eval()
         # produce noise from the noise prior
         # NOTE TODO: for now this only accepts 1d input dim
         z_mb = self.noise_prior.sample(sample_shape=(m, self.input_dim))
