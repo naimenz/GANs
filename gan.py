@@ -79,7 +79,8 @@ class GenerativeAdversarialNetwork(object):
         self.m = m
         self.k = k
 
-    def train_epoch(self):
+    # DEBUG
+    def train_epoch(self, epoch):
         """
         Train for an epoch, returning the average discriminator loss and the only generator loss
         
@@ -90,6 +91,7 @@ class GenerativeAdversarialNetwork(object):
         self.data_provider.reset()
         # now train the discriminator k times, saving the losses
         d_losses = [None] * self.k
+        # DEBUG only training discriminator for a bit
         for i in range(self.k):
             # sample training data
             train_mb = self.data_provider.sample_mb(self.m)
