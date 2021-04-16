@@ -14,20 +14,16 @@ SEED = 1
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
-# evaluation grid
-n_eval = 100
-x_eval = torch.linspace(0, 1, n_eval).reshape(-1, 1)
-
 x_train = load_mnist('mnist')[0] / 255 # dividing by 255 to get between 0 and 1
 data_provider = DataProvider(x_train.astype(np.float32))
 noise_prior = torch.distributions.uniform.Uniform(0, 1)
 
 G = MLPGenerator(noise_prior, input_dim=10, output_dim=784, hidden_dim=256, n_hidden_layers=3, lr=1e-3)
-D = MLPDiscriminator(input_dim=784, hidden_dim=256, n_hidden_layers=3, lr=1e-3)
+D = MLPDiscriminator(input_dim=784, hidden_dim=256, n_hidden_layers=1, lr=1e-3)
 
-N = 90 # number of epochs
+N = 2000 # number of epochs
 # k = 200 # number of updates to the discriminator each epoch
-k = 100 # they use 1 in the paper
+k = 2 # they use 1 in the paper
 m = 128 # number of samples per minibatch
 gan = GenerativeAdversarialNetwork(G, D, data_provider, m, k)
 
