@@ -25,7 +25,7 @@ noise_prior = torch.distributions.uniform.Uniform(0, 1)
 G = MLPGenerator(noise_prior, input_dim=10, output_dim=784, hidden_dim=256, n_hidden_layers=3, lr=1e-3)
 D = MLPDiscriminator(input_dim=784, hidden_dim=256, n_hidden_layers=3, lr=1e-3)
 
-N = 1000 # number of epochs
+N = 90 # number of epochs
 # k = 200 # number of updates to the discriminator each epoch
 k = 100 # they use 1 in the paper
 m = 128 # number of samples per minibatch

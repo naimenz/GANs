@@ -277,10 +277,10 @@ class Generator(nn.Module):
         """
         # make discriminator predictions for the two minibatches
         gen_preds = discriminator(gen_mb)
-        # print(f"mean gen pred in generator loss {torch.mean(gen_preds)}")
-        # print(f"mean LOG gen pred in generator loss {torch.mean(torch.log(gen_preds))}")
-        # return the loss
-        return -torch.mean(torch.log(gen_preds))
+        # NOTE: testing filtering out nan inf values
+        raw_logs = torch.log(gen_preds)
+        safe_logs = torch.where(torch.isnan(raw_logs) | (raw_logs == float('-inf')), torch.zeros_like(raw_logs), raw_logs)
+        return -torch.mean(safe_logs)
 
     # borrowed from RL CW
     def save(self, path):
